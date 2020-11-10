@@ -1,0 +1,58 @@
+---
+title: "Prop. 22 in L.A. County"
+output: html_document
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(leaflet)
+library(sf)
+library(glue)
+library(DT)
+library(readxl)
+```
+
+```{r include=FALSE}
+shapes = read_sf('precincts2020/Consolidations.shp')
+shapes
+```
+
+```{r include=FALSE}
+p22.raw = read_excel('STATE_MEASURE_22_11-03-20_by_Precinct_4193-7691.xls', skip = 2)
+
+p22 = p22.raw %>% 
+  filter(TYPE == 'TOTAL') %>% 
+  select(Precinct = PRECINCT, YES, NO) %>% 
+  mutate(
+    pct_yes = YES / (YES + NO),
+    popup = glue('precinct: {Precinct}: {round(pct_yes, 2) * 100}% ({YES} yes {NO} no)')
+  )
+
+p22
+
+shp.joined = shapes %>% 
+  left_join(p22) %>% 
+  st_transform(4269) %>% 
+  mutate(pct_yes = case_when(
+    pct_yes <= 0.4 ~ 0.4,
+    pct_yes >= 0.6 ~ 0.6,
+    TRUE ~ pct_yes
+  ))
+```
+
+
+```{r echo=FALSE, fig.height=7, fig.width=9}
+pal <- colorNumeric("RdBu", domain=shp.joined$pct_yes)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  setView(-118.223, 34.364, zoom = 9) %>% 
+  addPolygons(
+    data = shp.joined,
+    fillColor = ~pal(shp.joined$pct_yes),
+    fillOpacity = 0.3,
+    color = '#ddd',
+    weight = 0.01,
+    popup = shp.joined$popup
+  )
+```
