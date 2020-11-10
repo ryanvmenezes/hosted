@@ -55,4 +55,5 @@ leaflet() %>%
     weight = 0.01,
     popup = shp.joined$popup
   )
+
 ```
